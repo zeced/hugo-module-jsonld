@@ -1,25 +1,9 @@
 {{/*
   Builds an Article JSON-LD node (or Article subtype).
-
-  Context: page.
+  Outputs JSON. Callers: partial "..." . | transform.Unmarshal
 
   Supported subtypes via params.jsonld.type:
     Article (default), NewsArticle, BlogPosting, TechArticle, ScholarlyArticle
-
-  Frontmatter (params.jsonld):
-    type          string  — Article subtype override
-    name          string  — falls back to .Title
-    description   string  — falls back to .Description / .Summary
-    datePublished string  — ISO 8601; falls back to .Date
-    dateModified  string  — ISO 8601; falls back to .Lastmod
-    author:
-      name  string
-      url   string       — falls back to params.jsonld.organization.url
-
-  The node links to the WebPage node via mainEntityOfPage.
-  Author falls back to the configured Organization.
-
-  Returns an Article dict.
 */}}
 {{- $siteURL   := site.BaseURL | strings.TrimRight "/" -}}
 {{- $orgID     := printf "%s#organization" $siteURL -}}
@@ -31,14 +15,12 @@
 {{- $name        := $jsonld.name        | default .Title -}}
 {{- $description := $jsonld.description | default .Description | default .Summary -}}
 
-{{- /* Subtype */ -}}
 {{- $articleTypes := slice "Article" "NewsArticle" "BlogPosting" "TechArticle" "ScholarlyArticle" -}}
 {{- $type := "Article" -}}
 {{- with $jsonld.type -}}
   {{- if in $articleTypes . -}}{{- $type = . -}}{{- end -}}
 {{- end -}}
 
-{{- /* Author: frontmatter > page.Params.author > Organization */ -}}
 {{- $author := dict "@id" $orgID -}}
 {{- $jAuthor := $jsonld.author | default dict -}}
 {{- with $jAuthor.name -}}
@@ -48,7 +30,6 @@
   {{- $author = dict "@type" "Person" "name" . -}}
 {{- end -}}
 
-{{- /* Dates */ -}}
 {{- $datePublished := "" -}}
 {{- with $jsonld.datePublished -}}
   {{- $datePublished = partial "jsonld/helpers/validate-date.html" (dict "date" . "page" $) -}}
@@ -76,17 +57,11 @@
   "author"           $author
 -}}
 
-{{- with $description    -}}{{- $node = merge $node (dict "description"    .) -}}{{- end -}}
-{{- with $image          -}}{{- $node = merge $node (dict "image"          .) -}}{{- end -}}
-{{- with $datePublished  -}}{{- $node = merge $node (dict "datePublished"  .) -}}{{- end -}}
-{{- with $dateModified   -}}{{- $node = merge $node (dict "dateModified"   .) -}}{{- end -}}
+{{- with $description   -}}{{- $node = merge $node (dict "description"   .) -}}{{- end -}}
+{{- with $image         -}}{{- $node = merge $node (dict "image"         .) -}}{{- end -}}
+{{- with $datePublished -}}{{- $node = merge $node (dict "datePublished" .) -}}{{- end -}}
+{{- with $dateModified  -}}{{- $node = merge $node (dict "dateModified"  .) -}}{{- end -}}
+{{- with .Params.tags   -}}{{- $node = merge $node (dict "keywords" (delimit . ", ")) -}}{{- end -}}
+{{- with .WordCount     -}}{{- $node = merge $node (dict "wordCount" .)               -}}{{- end -}}
 
-{{- with .Params.tags -}}
-  {{- $node = merge $node (dict "keywords" (delimit . ", ")) -}}
-{{- end -}}
-
-{{- with .WordCount -}}
-  {{- $node = merge $node (dict "wordCount" .) -}}
-{{- end -}}
-
-{{- return $node -}}
+{{- $node | jsonify -}}

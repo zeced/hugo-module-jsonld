@@ -48,14 +48,14 @@
 
 {{- /* ── Resolve page-level schema ── */ -}}
 {{- $pageSchema := "" -}}
-{{- with $jsonld.type -}}
-  {{- $pageSchema = . -}}
-{{- else if eq $.Kind "home" -}}
+{{- if $jsonld.type -}}
+  {{- $pageSchema = $jsonld.type -}}
+{{- else if eq .Kind "home" -}}
   {{- /* home: WebPage handled below; WebSite is site-level */ -}}
-{{- else if eq $.Kind "section" -}}
+{{- else if eq .Kind "section" -}}
   {{- $pageSchema = "CollectionPage" -}}
-{{- else if $.IsPage -}}
-  {{- with index $typeMap $.Type -}}
+{{- else if .IsPage -}}
+  {{- with index $typeMap .Type -}}
     {{- $pageSchema = . -}}
   {{- else -}}
     {{- $pageSchema = "WebPage" -}}
@@ -86,20 +86,20 @@
      ════════════════════════════════════════════════════════════════ */ -}}
 
 {{- if in $schemas "Organization" -}}
-  {{- with partialCached "jsonld/nodes/organization.html" "global" -}}
+  {{- with partial "jsonld/nodes/organization.html" . | transform.Unmarshal -}}
     {{- $graph = $graph | append . -}}
   {{- end -}}
 {{- end -}}
 
 {{- if in $schemas "Place" -}}
-  {{- range partialCached "jsonld/nodes/place.html" "global" -}}
+  {{- range partial "jsonld/nodes/place.html" . | transform.Unmarshal -}}
     {{- $graph = $graph | append . -}}
   {{- end -}}
 {{- end -}}
 
 {{- /* WebSite — home page only */ -}}
 {{- if and (in $schemas "WebSite") (eq .Kind "home") -}}
-  {{- with partialCached "jsonld/nodes/website.html" "global" -}}
+  {{- with partial "jsonld/nodes/website.html" . | transform.Unmarshal -}}
     {{- $graph = $graph | append . -}}
   {{- end -}}
 {{- end -}}
@@ -114,23 +114,25 @@
 
   {{- /* BreadcrumbList — every page except home */ -}}
   {{- if and (in $schemas "BreadcrumbList") (ne .Kind "home") -}}
-    {{- with partial "jsonld/nodes/breadcrumb.html" . -}}
+    {{- with partial "jsonld/nodes/breadcrumb.html" . | transform.Unmarshal -}}
       {{- $graph = $graph | append . -}}
     {{- end -}}
   {{- end -}}
 
   {{- /* WebPage — always (handles CollectionPage, subtypes internally) */ -}}
-  {{- with partial "jsonld/nodes/webpage.html" . -}}
+  {{- with partial "jsonld/nodes/webpage.html" . | transform.Unmarshal -}}
     {{- $graph = $graph | append . -}}
   {{- end -}}
 
   {{- /* Content-type schema — supplements WebPage for leaf pages */ -}}
   {{- if and .IsPage $pageSchema -}}
-    {{- $webPageTypes := slice "WebPage" "CollectionPage" "ItemPage" "AboutPage" "ContactPage" "ProfilePage" -}}
-    {{- if not (in $webPageTypes $pageSchema) -}}
+    {{- /* These types are handled separately — never dispatch via schemaMap */ -}}
+    {{- $webPageTypes  := slice "WebPage" "CollectionPage" "ItemPage" "AboutPage" "ContactPage" "ProfilePage" -}}
+    {{- $separateTypes := slice "FAQPage" -}}
+    {{- if not (or (in $webPageTypes $pageSchema) (in $separateTypes $pageSchema)) -}}
       {{- $nodePath := index $schemaMap $pageSchema -}}
       {{- if $nodePath -}}
-        {{- with partial $nodePath . -}}
+        {{- with partial $nodePath . | transform.Unmarshal -}}
           {{- $graph = $graph | append . -}}
         {{- end -}}
       {{- else -}}
@@ -147,7 +149,7 @@
   {{- end -}}
 
   {{- /* FAQPage — unconditional check; partial decides whether to emit */ -}}
-  {{- with partial "jsonld/nodes/faqpage.html" . -}}
+  {{- with partial "jsonld/nodes/faqpage.html" . | transform.Unmarshal -}}
     {{- $graph = $graph | append . -}}
   {{- end -}}
 
@@ -160,6 +162,6 @@
   {{- $opts := dict -}}
   {{- if hugo.IsServer -}}{{- $opts = dict "indent" "  " -}}{{- end -}}
   <script type="application/ld+json">
-  {{- dict "@context" "https://schema.org" "@graph" $graph | jsonify $opts -}}
+  {{- dict "@context" "https://schema.org" "@graph" $graph | jsonify $opts | safeJS -}}
   </script>
 {{- end -}}

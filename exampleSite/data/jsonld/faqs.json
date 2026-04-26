@@ -1,25 +1,23 @@
-{
-  "faqs": [
-    {
-      "question": "Where are you located?",
-      "answer": "We are based in London, UK. Visit us at 1 Example Street, EC1A 1BB.",
-      "active": true,
-      "pinned": true,
-      "category": "general"
-    },
-    {
-      "question": "What are your opening hours?",
-      "answer": "We are open Monday to Friday, 9am to 6pm.",
-      "active": true,
-      "pinned": false,
-      "category": "general"
-    },
-    {
-      "question": "How do I cancel my subscription?",
-      "answer": "You can cancel at any time from your account dashboard under Settings → Billing.",
-      "active": true,
-      "pinned": false,
-      "category": "billing"
-    }
-  ]
-}
+[
+  {
+    "question": "Where are you located?",
+    "answer": "We are based in London, UK. Visit us at 1 Example Street, EC1A 1BB.",
+    "active": true,
+    "pinned": true,
+    "category": "general"
+  },
+  {
+    "question": "What are your opening hours?",
+    "answer": "We are open Monday to Friday, 9am to 6pm.",
+    "active": true,
+    "pinned": false,
+    "category": "general"
+  },
+  {
+    "question": "How do I cancel my subscription?",
+    "answer": "You can cancel at any time from your account dashboard under Settings → Billing.",
+    "active": true,
+    "pinned": false,
+    "category": "billing"
+  }
+]

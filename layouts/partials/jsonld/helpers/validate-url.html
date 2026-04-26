@@ -5,18 +5,15 @@
     url   string  — URL to validate
     page  Page    — page context for warning messages
 
-  Returns the URL if valid, empty string otherwise (with a warnf).
+  Outputs the URL if valid, nothing (empty string) otherwise.
+  Callers: $u := partial "jsonld/helpers/validate-url.html" (dict ...)
 */}}
-{{- $url := .url | default "" -}}
+{{- $url  := .url  | default "" -}}
 {{- $page := .page -}}
-
-{{- if not $url -}}{{- return "" -}}{{- end -}}
-
-{{- $valid := or (strings.HasPrefix $url "https://") (strings.HasPrefix $url "http://") -}}
-
-{{- if not $valid -}}
-  {{- warnf "[jsonld] %q: URL %q is not absolute — use an absolute URL starting with https://" $page.RelPermalink $url -}}
-  {{- return "" -}}
+{{- if $url -}}
+  {{- if or (strings.HasPrefix $url "https://") (strings.HasPrefix $url "http://") -}}
+    {{- $url -}}
+  {{- else -}}
+    {{- warnf "[jsonld] %q: URL %q is not absolute — use an absolute URL starting with https://" $page.RelPermalink $url -}}
+  {{- end -}}
 {{- end -}}
-
-{{- return $url -}}

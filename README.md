@@ -195,29 +195,27 @@ sameAs:
 Required when `"Place"` is in `params.jsonld.schemas`. The entry with `"administrative": true` is used as the default event location and the organisation's `location`.
 
 ```json
-{
-  "places": [
-    {
-      "slug": "headquarters",
-      "name": "My Office",
-      "administrative": true,
-      "address": {
-        "streetAddress":   "1 Example Street",
-        "addressLocality": "London",
-        "postalCode":      "EC1A 1BB",
-        "addressCountry":  "GB"
-      },
-      "telephone": "+44-20-1234-5678",
-      "openingHours": [
-        {
-          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-          "opens":  "09:00",
-          "closes": "18:00"
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "slug": "headquarters",
+    "name": "My Office",
+    "administrative": true,
+    "address": {
+      "streetAddress":   "1 Example Street",
+      "addressLocality": "London",
+      "postalCode":      "EC1A 1BB",
+      "addressCountry":  "GB"
+    },
+    "telephone": "+44-20-1234-5678",
+    "openingHours": [
+      {
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "opens":  "09:00",
+        "closes": "18:00"
+      }
+    ]
+  }
+]
 ```
 
 ### `data/jsonld/faqs.json`
@@ -227,17 +225,15 @@ Global FAQ pool. Entries with `"active": false` are always skipped.
 - `pinned: false` → only appears when the page's `.Type` is in `params.jsonld.faqSections`
 
 ```json
-{
-  "faqs": [
-    {
-      "question": "Where are you based?",
-      "answer":   "London, UK.",
-      "active":   true,
-      "pinned":   true,
-      "category": "general"
-    }
-  ]
-}
+[
+  {
+    "question": "Where are you based?",
+    "answer":   "London, UK.",
+    "active":   true,
+    "pinned":   true,
+    "category": "general"
+  }
+]
 ```
 
 ---

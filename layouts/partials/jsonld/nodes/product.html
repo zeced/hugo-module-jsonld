@@ -1,38 +1,19 @@
 {{/*
   Builds a Product JSON-LD node.
-
-  Context: page.
-
-  Frontmatter (params.jsonld):
-    name          string   — falls back to .Title
-    description   string   — falls back to .Description / .Summary
-    sku           string
-    gtin          string
-    offers:
-      - price          string/number   — required per offer
-        priceCurrency  string          — default "EUR"
-        availability   string          — schema.org name, default "InStock"
-        url            string          — optional purchase URL
-    aggregateRating:
-      ratingValue  number
-      reviewCount  number
-      bestRating   number   — optional, default 5
-
-  Returns a Product dict.
+  Outputs JSON. Callers: partial "..." . | transform.Unmarshal
 */}}
 {{- $siteURL   := site.BaseURL | strings.TrimRight "/" -}}
 {{- $orgID     := printf "%s#organization" $siteURL -}}
-{{- $productID := printf "%s#product" (.Permalink | strings.TrimRight "/") -}}
+{{- $permalink := .Permalink | strings.TrimRight "/" -}}
+{{- $jsonld    := .Params.jsonld | default dict -}}
 
-{{- $jsonld      := .Params.jsonld | default dict -}}
 {{- $name        := $jsonld.name        | default .Title -}}
 {{- $description := $jsonld.description | default .Description | default .Summary -}}
-
-{{- $image := partial "jsonld/helpers/resolve-image.html" (dict "page" .) -}}
+{{- $image       := partial "jsonld/helpers/resolve-image.html" (dict "page" .) -}}
 
 {{- $node := dict
   "@type"  "Product"
-  "@id"    $productID
+  "@id"    (printf "%s#product" $permalink)
   "name"   $name
   "url"    .Permalink
   "brand"  (dict "@id" $orgID)
@@ -43,15 +24,11 @@
 {{- with $jsonld.sku  -}}{{- $node = merge $node (dict "sku"         .) -}}{{- end -}}
 {{- with $jsonld.gtin -}}{{- $node = merge $node (dict "gtin"        .) -}}{{- end -}}
 
-{{- /* Offers */ -}}
 {{- $jOffers := $jsonld.offers | default slice -}}
 {{- if $jOffers -}}
   {{- $offers := slice -}}
   {{- range $jOffers -}}
-    {{- $avail := "https://schema.org/InStock" -}}
-    {{- with .availability -}}
-      {{- $avail = printf "https://schema.org/%s" . -}}
-    {{- end -}}
+    {{- $avail := printf "https://schema.org/%s" (.availability | default "InStock") -}}
     {{- $offer := dict
       "@type"         "Offer"
       "price"         (string .price)
@@ -68,7 +45,6 @@
   {{- end -}}
 {{- end -}}
 
-{{- /* AggregateRating */ -}}
 {{- $rating := $jsonld.aggregateRating | default dict -}}
 {{- if and $rating.ratingValue $rating.reviewCount -}}
   {{- $ratingNode := dict
@@ -76,10 +52,8 @@
     "ratingValue" (string $rating.ratingValue)
     "reviewCount" (string $rating.reviewCount)
   -}}
-  {{- with $rating.bestRating -}}
-    {{- $ratingNode = merge $ratingNode (dict "bestRating" (string .)) -}}
-  {{- end -}}
+  {{- with $rating.bestRating -}}{{- $ratingNode = merge $ratingNode (dict "bestRating" (string .)) -}}{{- end -}}
   {{- $node = merge $node (dict "aggregateRating" $ratingNode) -}}
 {{- end -}}
 
-{{- return $node -}}
+{{- $node | jsonify -}}

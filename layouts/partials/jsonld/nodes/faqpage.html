@@ -1,25 +1,12 @@
 {{/*
   Builds a FAQPage JSON-LD node.
+  Outputs JSON (empty object {} if no FAQ items found).
+  Callers: partial "..." . | transform.Unmarshal
 
-  Context: page.
-
-  FAQ sources (combined, deduplicated by question text):
-
-  1. Global FAQs — data/jsonld/faqs.json
-     Included when the page's .Type is listed in params.jsonld.faqSections.
-     Each entry: { question, answer, active (bool), pinned (bool) }
-     - active: false  → always skipped
-     - pinned: true   → also included on pages that have page-level FAQs,
-                        even if the section is not in faqSections
-
-  2. Page-level FAQs — params.jsonld.faqs (frontmatter)
-     Always included when present.
-     Each entry: { question, answer }
-
-  Config (params.jsonld):
-    faqSections  []string  — .Type values where global FAQs are injected
-
-  Returns a FAQPage dict, or empty dict if no FAQ items are found.
+  FAQ sources:
+    1. Global (data/jsonld/faqs.json) — when .Type is in params.jsonld.faqSections
+       pinned:true entries also appear on pages that have their own jsonld.faqs
+    2. Page-level (params.jsonld.faqs) — always when present
 */}}
 {{- $jsonld      := .Params.jsonld | default dict -}}
 {{- $cfg         := site.Params.jsonld | default dict -}}
@@ -27,60 +14,47 @@
 {{- $pageFaqs    := $jsonld.faqs -}}
 {{- $inSection   := in $faqSections .Type -}}
 
-{{- /* Nothing to do */ -}}
-{{- if not (or $pageFaqs $inSection) -}}
-  {{- return dict -}}
-{{- end -}}
+{{- $node  := dict -}}
+{{- $items := slice -}}
+{{- $seen  := slice -}}
 
-{{- $items   := slice -}}
-{{- $seen    := slice -}} {{- /* deduplicate by question text */ -}}
+{{- if or $pageFaqs $inSection -}}
+  {{- $faqData    := index hugo.Data "jsonld" | default dict -}}
+  {{- $globalFaqs := index $faqData "faqs" | default slice -}}
 
-{{- /* ── Global FAQs ── */ -}}
-{{- $faqData    := index site.Data "jsonld" | default dict -}}
-{{- $globalFaqs := index $faqData "faqs" | default slice -}}
-
-{{- range $globalFaqs -}}
-  {{- if not .active -}}{{- continue -}}{{- end -}}
-
-  {{- $include := false -}}
-  {{- if $inSection -}}
-    {{- $include = true -}}
-  {{- else if and $pageFaqs .pinned -}}
-    {{- /* Pinned globals surface on any page that has its own FAQs */ -}}
-    {{- $include = true -}}
+  {{- range $globalFaqs -}}
+    {{- if not .active -}}{{- continue -}}{{- end -}}
+    {{- $include := or $inSection (and $pageFaqs .pinned) -}}
+    {{- if and $include (not (in $seen .question)) -}}
+      {{- $items = $items | append (dict
+        "@type"          "Question"
+        "name"           .question
+        "acceptedAnswer" (dict "@type" "Answer" "text" .answer)
+      ) -}}
+      {{- $seen = $seen | append .question -}}
+    {{- end -}}
   {{- end -}}
 
-  {{- if and $include (not (in $seen .question)) -}}
-    {{- $items = $items | append (dict
-      "@type"          "Question"
-      "name"           .question
-      "acceptedAnswer" (dict "@type" "Answer" "text" .answer)
-    ) -}}
-    {{- $seen = $seen | append .question -}}
+  {{- range $pageFaqs -}}
+    {{- if not (in $seen .question) -}}
+      {{- $items = $items | append (dict
+        "@type"          "Question"
+        "name"           .question
+        "acceptedAnswer" (dict "@type" "Answer" "text" .answer)
+      ) -}}
+      {{- $seen = $seen | append .question -}}
+    {{- end -}}
   {{- end -}}
-{{- end -}}
 
-{{- /* ── Page-level FAQs ── */ -}}
-{{- range $pageFaqs -}}
-  {{- if not (in $seen .question) -}}
-    {{- $items = $items | append (dict
-      "@type"          "Question"
-      "name"           .question
-      "acceptedAnswer" (dict "@type" "Answer" "text" .answer)
-    ) -}}
-    {{- $seen = $seen | append .question -}}
+  {{- if $items -}}
+    {{- $permalink := .Permalink | strings.TrimRight "/" -}}
+    {{- $node = dict
+      "@type"      "FAQPage"
+      "@id"        (printf "%s#faqpage" $permalink)
+      "mainEntity" $items
+      "isPartOf"   (dict "@id" (printf "%s#webpage" $permalink))
+    -}}
   {{- end -}}
 {{- end -}}
 
-{{- if not $items -}}
-  {{- return dict -}}
-{{- end -}}
-
-{{- $permalink := .Permalink | strings.TrimRight "/" -}}
-
-{{- return (dict
-  "@type"      "FAQPage"
-  "@id"        (printf "%s#faqpage" $permalink)
-  "mainEntity" $items
-  "isPartOf"   (dict "@id" (printf "%s#webpage" $permalink))
-) -}}
+{{- $node | jsonify -}}

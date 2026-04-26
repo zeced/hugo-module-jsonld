@@ -6,17 +6,18 @@
     override  string  — optional explicit image path (highest priority)
 
   Resolution order:
-    1. override param
+    1. override
     2. page.Params.jsonld.image
     3. page.Params.images[0]
     4. page.Params.image
     5. site.Params.jsonld.defaultImage
 
-  Returns absolute URL or empty string if nothing found.
+  Outputs the absolute URL, or nothing if not found.
+  Callers: $img := partial "jsonld/helpers/resolve-image.html" (dict ...)
 */}}
-{{- $page := .page -}}
+{{- $page     := .page -}}
 {{- $override := .override | default "" -}}
-{{- $jsonld := $page.Params.jsonld | default dict -}}
+{{- $jsonld   := $page.Params.jsonld | default dict -}}
 
 {{- $image := "" -}}
 {{- if $override -}}
@@ -33,8 +34,4 @@
   {{- end -}}
 {{- end -}}
 
-{{- if $image -}}
-  {{- return ($image | absURL) -}}
-{{- end -}}
-
-{{- return "" -}}
+{{- with $image -}}{{- . | absURL -}}{{- end -}}

@@ -1,19 +1,12 @@
 {{/*
   Builds a BreadcrumbList JSON-LD node.
-
-  Context: page.
-
-  The list always starts with the home page and follows Hugo's .Ancestors
-  chain up to the current page.
-
-  Returns a BreadcrumbList dict, or empty dict if the page is the home page
-  (single-item breadcrumbs are meaningless).
+  Outputs JSON (empty object {} if page is home or list has only one item).
+  Callers: partial "..." . | transform.Unmarshal
 */}}
 {{- $permalink := .Permalink | strings.TrimRight "/" -}}
 {{- $items     := slice -}}
 {{- $pos       := 1 -}}
 
-{{- /* Home */ -}}
 {{- $items = $items | append (dict
   "@type"    "ListItem"
   "position" $pos
@@ -22,7 +15,6 @@
 ) -}}
 {{- $pos = add $pos 1 -}}
 
-{{- /* Ancestors in ascending order (root → parent) */ -}}
 {{- range .Ancestors.Reverse -}}
   {{- if ne .Kind "home" -}}
     {{- $items = $items | append (dict
@@ -35,7 +27,6 @@
   {{- end -}}
 {{- end -}}
 
-{{- /* Current page (only if not home) */ -}}
 {{- if ne .Kind "home" -}}
   {{- $items = $items | append (dict
     "@type"    "ListItem"
@@ -45,13 +36,13 @@
   ) -}}
 {{- end -}}
 
-{{- /* A single-item list (home only) is not useful */ -}}
-{{- if le (len $items) 1 -}}
-  {{- return dict -}}
+{{- $node := dict -}}
+{{- if gt (len $items) 1 -}}
+  {{- $node = dict
+    "@type"           "BreadcrumbList"
+    "@id"             (printf "%s#breadcrumb" $permalink)
+    "itemListElement" $items
+  -}}
 {{- end -}}
 
-{{- return (dict
-  "@type"           "BreadcrumbList"
-  "@id"             (printf "%s#breadcrumb" $permalink)
-  "itemListElement" $items
-) -}}
+{{- $node | jsonify -}}

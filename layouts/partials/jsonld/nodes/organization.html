@@ -1,61 +1,52 @@
 {{/*
   Builds an Organization JSON-LD node.
-
-  Context: any (uses site globals only — safe for partialCached "global").
-
-  Config (params.jsonld.organization):
-    name         string   — required; falls back to site.Title
-    url          string   — falls back to site.BaseURL
-    legalName    string
-    email        string
-    telephone    string
-    foundingDate string
-    logo         string   — relative or absolute image path
-    sameAs       []string — social/official profile URLs
-
-  Place reference: reads data/jsonld/places.json; links to the entry
-  with administrative=true via @id.
-
-  Returns an Organization dict, or empty dict if name cannot be resolved.
+  Outputs JSON. Callers: partial "..." . | transform.Unmarshal
+  Caching: hugo.Store key "jsonld:organization" (JSON string).
 */}}
-{{- $cfg := site.Params.jsonld | default dict -}}
-{{- $org := $cfg.organization | default dict -}}
+{{- $cachedJSON := hugo.Store.Get "jsonld:organization" | default "" -}}
+{{- if $cachedJSON -}}
+  {{- $cachedJSON -}}
+{{- else -}}
+  {{- $cfg := site.Params.jsonld | default dict -}}
+  {{- $org := $cfg.organization | default dict -}}
+  {{- $name := $org.name | default site.Title -}}
 
-{{- $name := $org.name | default site.Title -}}
-{{- if not $name -}}
-  {{- warnf "[jsonld] Organization.name is not set — configure params.jsonld.organization.name or site.title." -}}
-  {{- return dict -}}
+  {{- $node := dict -}}
+
+  {{- if $name -}}
+    {{- $siteURL := site.BaseURL | strings.TrimRight "/" -}}
+    {{- $url     := $org.url | default site.BaseURL -}}
+    {{- $orgID   := printf "%s#organization" $siteURL -}}
+
+    {{- $placesData := index hugo.Data "jsonld" | default dict -}}
+    {{- $places     := index $placesData "places" | default slice -}}
+    {{- $adminPlace := index (where $places "administrative" true) 0 | default dict -}}
+
+    {{- $node = dict
+      "@type" "Organization"
+      "@id"   $orgID
+      "name"  $name
+      "url"   $url
+    -}}
+
+    {{- with $org.legalName    -}}{{- $node = merge $node (dict "legalName"    .)          -}}{{- end -}}
+    {{- with $org.email        -}}{{- $node = merge $node (dict "email"        .)          -}}{{- end -}}
+    {{- with $org.telephone    -}}{{- $node = merge $node (dict "telephone"    .)          -}}{{- end -}}
+    {{- with $org.foundingDate -}}{{- $node = merge $node (dict "foundingDate" (string .)) -}}{{- end -}}
+    {{- with $org.sameAs       -}}{{- $node = merge $node (dict "sameAs"       .)          -}}{{- end -}}
+
+    {{- with $org.logo -}}
+      {{- $node = merge $node (dict "logo" (dict "@type" "ImageObject" "url" (. | absURL))) -}}
+    {{- end -}}
+
+    {{- with $adminPlace.slug -}}
+      {{- $node = merge $node (dict "location" (dict "@id" (printf "%s#place-%s" $siteURL .))) -}}
+    {{- end -}}
+  {{- else -}}
+    {{- warnf "[jsonld] Organization.name is not set — configure params.jsonld.organization.name or site.title." -}}
+  {{- end -}}
+
+  {{- $json := $node | jsonify -}}
+  {{- hugo.Store.Set "jsonld:organization" $json -}}
+  {{- $json -}}
 {{- end -}}
-
-{{- $siteURL := site.BaseURL | strings.TrimRight "/" -}}
-{{- $url     := $org.url | default site.BaseURL -}}
-{{- $orgID   := printf "%s#organization" $siteURL -}}
-
-{{- /* Link to administrative place if data file is present */ -}}
-{{- $placesData  := index site.Data "jsonld" | default dict -}}
-{{- $places      := index $placesData "places" | default slice -}}
-{{- $adminPlace  := index (where $places "administrative" true) 0 | default dict -}}
-
-{{- $node := dict
-  "@type" "Organization"
-  "@id"   $orgID
-  "name"  $name
-  "url"   $url
--}}
-
-{{- with $org.legalName    -}}{{- $node = merge $node (dict "legalName"    .)          -}}{{- end -}}
-{{- with $org.email        -}}{{- $node = merge $node (dict "email"        .)          -}}{{- end -}}
-{{- with $org.telephone    -}}{{- $node = merge $node (dict "telephone"    .)          -}}{{- end -}}
-{{- with $org.foundingDate -}}{{- $node = merge $node (dict "foundingDate" (string .)) -}}{{- end -}}
-{{- with $org.sameAs       -}}{{- $node = merge $node (dict "sameAs"       .)          -}}{{- end -}}
-
-{{- with $org.logo -}}
-  {{- $node = merge $node (dict "logo" (dict "@type" "ImageObject" "url" (. | absURL))) -}}
-{{- end -}}
-
-{{- with $adminPlace.slug -}}
-  {{- $placeID := printf "%s#place-%s" $siteURL . -}}
-  {{- $node = merge $node (dict "location" (dict "@id" $placeID)) -}}
-{{- end -}}
-
-{{- return $node -}}

@@ -1,23 +1,21 @@
-{
-  "places": [
-    {
-      "slug": "headquarters",
-      "name": "Example HQ",
-      "administrative": true,
-      "address": {
-        "streetAddress": "1 Example Street",
-        "addressLocality": "London",
-        "postalCode": "EC1A 1BB",
-        "addressCountry": "GB"
-      },
-      "telephone": "+44-20-1234-5678",
-      "openingHours": [
-        {
-          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-          "opens": "09:00",
-          "closes": "18:00"
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "slug": "headquarters",
+    "name": "Example HQ",
+    "administrative": true,
+    "address": {
+      "streetAddress": "1 Example Street",
+      "addressLocality": "London",
+      "postalCode": "EC1A 1BB",
+      "addressCountry": "GB"
+    },
+    "telephone": "+44-20-1234-5678",
+    "openingHours": [
+      {
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "opens": "09:00",
+        "closes": "18:00"
+      }
+    ]
+  }
+]
