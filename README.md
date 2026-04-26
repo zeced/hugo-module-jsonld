@@ -1,10 +1,14 @@
 # hugo-module-jsonld
 
+[![Test Build](https://github.com/zeced/hugo-module-jsonld/actions/workflows/test.yml/badge.svg)](https://github.com/zeced/hugo-module-jsonld/actions/workflows/test.yml)
+
 A Hugo module that automatically generates [JSON-LD](https://json-ld.org/) structured data (`schema.org`) for your site, output as a single `@graph` per page.
 
 ## Requirements
 
-Hugo `0.123.0` or newer (no extended build required).
+Hugo `0.156.0` or newer (no extended build required).
+
+> **Why 0.156.0?** This module uses the `hugo.Data` function to access data files. `hugo.Data` was introduced in Hugo 0.156.0 as a replacement for the deprecated `.Site.Data` / `site.Data` API. Older Hugo versions are not supported.
 
 ## Quick start
 
@@ -242,7 +246,7 @@ Global FAQ pool. Entries with `"active": false` are always skipped.
 
 To add a schema not included in the module:
 
-1. Create `layouts/partials/jsonld/nodes/myschema.html` in your project. The partial receives the page context (`.`) and must `return` a dict (or `dict` to emit nothing).
+1. Create `layouts/partials/jsonld/nodes/myschema.html` in your project. The partial receives the page context (`.`) and must output a JSON string via `$node | jsonify` (output an empty dict `{{- dict | jsonify -}}` to emit nothing).
 2. Register it in `typeMap`:
    ```toml
    [jsonld.typeMap]
