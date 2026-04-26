@@ -1,0 +1,37 @@
+{{/*
+  Builds a WebSite JSON-LD node. Emitted on the home page only.
+
+  Context: page (home page).
+
+  Config (params.jsonld):
+    searchUrlPattern  string  — enables SearchAction, e.g. "/search?q={search_term_string}"
+    defaultImage      string  — fallback image for the site
+
+  Returns a WebSite dict.
+*/}}
+{{- $cfg     := site.Params.jsonld | default dict -}}
+{{- $siteURL := site.BaseURL | strings.TrimRight "/" -}}
+{{- $orgID   := printf "%s#organization" $siteURL -}}
+
+{{- $node := dict
+  "@type"     "WebSite"
+  "@id"       (printf "%s#website" $siteURL)
+  "name"      site.Title
+  "url"       site.BaseURL
+  "publisher" (dict "@id" $orgID)
+-}}
+
+{{- with $cfg.searchUrlPattern -}}
+  {{- $searchAction := dict
+    "@type"       "SearchAction"
+    "target"      (dict "@type" "EntryPoint" "urlTemplate" (printf "%s%s" $siteURL .))
+    "query-input" "required name=search_term_string"
+  -}}
+  {{- $node = merge $node (dict "potentialAction" $searchAction) -}}
+{{- end -}}
+
+{{- with $cfg.defaultImage -}}
+  {{- $node = merge $node (dict "image" (. | absURL)) -}}
+{{- end -}}
+
+{{- return $node -}}

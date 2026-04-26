@@ -1,0 +1,38 @@
+[jsonld]
+  # Built-in schema types to emit on every page.
+  # Remove "Place" if you don't have data/jsonld/places.json.
+  schemas = ["Organization", "WebSite", "BreadcrumbList", "Place"]
+
+  # Map Hugo content .Type values to JSON-LD schema names.
+  # Pages whose type isn't listed here default to WebPage.
+  [jsonld.typeMap]
+    blog   = "Article"
+    posts  = "BlogPosting"
+    events = "Event"
+    team   = "Person"
+    shop   = "Product"
+
+  # Sections (by .Type) where global FAQs from data/jsonld/faqs.json
+  # are automatically injected into the FAQPage node.
+  faqSections = ["services", "pricing"]
+
+  # Fallback image used when a page has no image in frontmatter.
+  defaultImage = "images/og-image.png"
+
+  # ── Organization ────────────────────────────────────────────────────────────
+  [jsonld.organization]
+    name         = "Example Organisation"
+    legalName    = "Example Organisation Ltd."
+    url          = "https://example.com/"
+    email        = "hello@example.com"
+    telephone    = "+1-800-EXAMPLE"
+    foundingDate = "2010"
+    logo         = "images/logo.png"
+    sameAs       = [
+      "https://twitter.com/example",
+      "https://linkedin.com/company/example",
+    ]
+
+  # ── WebSite search action (optional) ────────────────────────────────────────
+  # Enables a SearchAction node on the home page.
+  # searchUrlPattern = "/search?q={search_term_string}"

@@ -1,0 +1,10 @@
+{{/*
+  Entry point for hugo-module-jsonld.
+
+  Drop this call inside your <head> partial:
+    {{ partial "jsonld/head.html" . }}
+
+  All configuration is via params.jsonld in your site config.
+  See layouts/partials/jsonld/aggregator.html for full documentation.
+*/}}
+{{- partial "jsonld/aggregator.html" . -}}

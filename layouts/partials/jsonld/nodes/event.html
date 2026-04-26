@@ -1,0 +1,124 @@
+{{/*
+  Builds an Event JSON-LD node.
+
+  Context: page.
+
+  Frontmatter (params.jsonld) — startDate is required:
+    startDate   string    — ISO 8601 datetime; REQUIRED
+    endDate     string    — ISO 8601 datetime; optional
+    name        string    — falls back to .Title
+    description string    — falls back to .Description / .Summary
+    location:             — falls back to primary place in data/jsonld/places.json
+      name  string
+      address:
+        streetAddress    string
+        addressLocality  string
+        postalCode       string
+        addressCountry   string
+    organizer:            — falls back to configured Organization
+      name  string
+      url   string
+    offers:               — optional list
+      - price         string/number
+        priceCurrency string   — default "EUR"
+        name          string   — optional label
+        availability  string   — schema.org availability name, default "InStock"
+        url           string   — optional booking URL
+
+  Returns an Event dict, or empty dict if startDate is missing/invalid.
+*/}}
+{{- $siteURL   := site.BaseURL | strings.TrimRight "/" -}}
+{{- $orgID     := printf "%s#organization" $siteURL -}}
+{{- $permalink := .Permalink | strings.TrimRight "/" -}}
+{{- $eventID   := printf "%s#event" $permalink -}}
+
+{{- $jsonld      := .Params.jsonld | default dict -}}
+{{- $name        := $jsonld.name        | default .Title -}}
+{{- $description := $jsonld.description | default .Description | default .Summary -}}
+
+{{- /* startDate is required */ -}}
+{{- $startDate := partial "jsonld/helpers/validate-date.html" (dict "date" $jsonld.startDate "page" .) -}}
+{{- if not $startDate -}}
+  {{- warnf "[jsonld] %q: Event requires jsonld.startDate in frontmatter." .RelPermalink -}}
+  {{- return dict -}}
+{{- end -}}
+
+{{- $endDate := partial "jsonld/helpers/validate-date.html" (dict "date" $jsonld.endDate "page" .) -}}
+
+{{- /* Location: frontmatter > primary place */ -}}
+{{- $location    := dict -}}
+{{- $jLocation   := $jsonld.location | default dict -}}
+{{- with $jLocation.name -}}
+  {{- $loc := dict "@type" "Place" "name" . -}}
+  {{- with $jLocation.address -}}
+    {{- $addr := dict
+      "@type"           "PostalAddress"
+      "streetAddress"   .streetAddress
+      "addressLocality" .addressLocality
+      "postalCode"      .postalCode
+      "addressCountry"  .addressCountry
+    -}}
+    {{- $loc = merge $loc (dict "address" $addr) -}}
+  {{- end -}}
+  {{- $location = $loc -}}
+{{- else -}}
+  {{- $placesData := index site.Data "jsonld" | default dict -}}
+  {{- $places     := index $placesData "places" | default slice -}}
+  {{- with index (where $places "administrative" true) 0 -}}
+    {{- $location = dict "@id" (printf "%s#place-%s" $siteURL .slug) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Organizer: frontmatter > Organization */ -}}
+{{- $organizer  := dict "@id" $orgID -}}
+{{- $jOrganizer := $jsonld.organizer | default dict -}}
+{{- with $jOrganizer.name -}}
+  {{- $organizer = dict "@type" "Organization" "name" . -}}
+  {{- with $jOrganizer.url -}}{{- $organizer = merge $organizer (dict "url" .) -}}{{- end -}}
+{{- end -}}
+
+{{- $image := partial "jsonld/helpers/resolve-image.html" (dict "page" .) -}}
+
+{{- $node := dict
+  "@type"               "Event"
+  "@id"                 $eventID
+  "name"                $name
+  "startDate"           $startDate
+  "url"                 .Permalink
+  "organizer"           $organizer
+  "eventAttendanceMode" "https://schema.org/OfflineEventAttendanceMode"
+  "eventStatus"         "https://schema.org/EventScheduled"
+-}}
+
+{{- with $endDate     -}}{{- $node = merge $node (dict "endDate"     .) -}}{{- end -}}
+{{- with $description -}}{{- $node = merge $node (dict "description" .) -}}{{- end -}}
+{{- with $image       -}}{{- $node = merge $node (dict "image"       .) -}}{{- end -}}
+{{- with $location    -}}{{- $node = merge $node (dict "location"    .) -}}{{- end -}}
+
+{{- /* Offers */ -}}
+{{- $jOffers := $jsonld.offers | default slice -}}
+{{- if $jOffers -}}
+  {{- $offers := slice -}}
+  {{- range $jOffers -}}
+    {{- $avail := "https://schema.org/InStock" -}}
+    {{- with .availability -}}
+      {{- $avail = printf "https://schema.org/%s" . -}}
+    {{- end -}}
+    {{- $offer := dict
+      "@type"        "Offer"
+      "price"        (string .price)
+      "priceCurrency" (.priceCurrency | default "EUR")
+      "availability"  $avail
+    -}}
+    {{- with .name -}}{{- $offer = merge $offer (dict "name" .) -}}{{- end -}}
+    {{- with .url  -}}{{- $offer = merge $offer (dict "url"  .) -}}{{- end -}}
+    {{- $offers = $offers | append $offer -}}
+  {{- end -}}
+  {{- if eq (len $offers) 1 -}}
+    {{- $node = merge $node (dict "offers" (index $offers 0)) -}}
+  {{- else -}}
+    {{- $node = merge $node (dict "offers" $offers) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- return $node -}}

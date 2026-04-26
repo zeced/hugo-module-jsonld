@@ -1,0 +1,59 @@
+{{/*
+  Builds a WebPage JSON-LD node (or a WebPage subtype).
+
+  Context: page.
+
+  @type resolution (first match wins):
+    1. params.jsonld.type if it is a known WebPage subtype
+    2. "CollectionPage" for section pages (Kind == "section")
+    3. "WebPage" (default)
+
+  Supported WebPage subtypes (via params.jsonld.type):
+    WebPage, CollectionPage, ItemPage, AboutPage, ContactPage, ProfilePage
+
+  Returns a WebPage dict.
+*/}}
+{{- $siteURL   := site.BaseURL | strings.TrimRight "/" -}}
+{{- $orgID     := printf "%s#organization" $siteURL -}}
+{{- $websiteID := printf "%s#website" $siteURL -}}
+{{- $permalink := .Permalink | strings.TrimRight "/" -}}
+{{- $pageID    := printf "%s#webpage" $permalink -}}
+
+{{- $jsonld      := .Params.jsonld | default dict -}}
+{{- $name        := $jsonld.name        | default .Title -}}
+{{- $description := $jsonld.description | default .Description | default .Summary -}}
+
+{{- /* Determine @type */ -}}
+{{- $webPageSubtypes := slice "WebPage" "CollectionPage" "ItemPage" "AboutPage" "ContactPage" "ProfilePage" -}}
+{{- $type := "WebPage" -}}
+{{- if eq .Kind "section" -}}
+  {{- $type = "CollectionPage" -}}
+{{- end -}}
+{{- with $jsonld.type -}}
+  {{- if in $webPageSubtypes . -}}
+    {{- $type = . -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $image := partial "jsonld/helpers/resolve-image.html" (dict "page" .) -}}
+
+{{- $node := dict
+  "@type"     $type
+  "@id"       $pageID
+  "url"       .Permalink
+  "name"      $name
+  "isPartOf"  (dict "@id" (printf "%s#website" $siteURL))
+  "publisher" (dict "@id" $orgID)
+-}}
+
+{{- /* BreadcrumbList is not emitted on the home page */ -}}
+{{- if ne .Kind "home" -}}
+  {{- $node = merge $node (dict "breadcrumb" (dict "@id" (printf "%s#breadcrumb" $permalink))) -}}
+{{- end -}}
+
+{{- with $description -}}{{- $node = merge $node (dict "description" .)                                          -}}{{- end -}}
+{{- with $image       -}}{{- $node = merge $node (dict "image"       .)                                          -}}{{- end -}}
+{{- with .Date        -}}{{- $node = merge $node (dict "datePublished" (. | time.Format "2006-01-02T15:04:05Z07:00")) -}}{{- end -}}
+{{- with .Lastmod     -}}{{- $node = merge $node (dict "dateModified"  (. | time.Format "2006-01-02T15:04:05Z07:00")) -}}{{- end -}}
+
+{{- return $node -}}

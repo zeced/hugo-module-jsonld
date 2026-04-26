@@ -1,0 +1,40 @@
+{{/*
+  Resolves an absolute image URL using a fallback chain.
+
+  Input dict:
+    page      Page    — page context
+    override  string  — optional explicit image path (highest priority)
+
+  Resolution order:
+    1. override param
+    2. page.Params.jsonld.image
+    3. page.Params.images[0]
+    4. page.Params.image
+    5. site.Params.jsonld.defaultImage
+
+  Returns absolute URL or empty string if nothing found.
+*/}}
+{{- $page := .page -}}
+{{- $override := .override | default "" -}}
+{{- $jsonld := $page.Params.jsonld | default dict -}}
+
+{{- $image := "" -}}
+{{- if $override -}}
+  {{- $image = $override -}}
+{{- else if $jsonld.image -}}
+  {{- $image = $jsonld.image -}}
+{{- else if $page.Params.images -}}
+  {{- $image = index $page.Params.images 0 -}}
+{{- else if $page.Params.image -}}
+  {{- $image = $page.Params.image -}}
+{{- else -}}
+  {{- with (site.Params.jsonld | default dict).defaultImage -}}
+    {{- $image = . -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if $image -}}
+  {{- return ($image | absURL) -}}
+{{- end -}}
+
+{{- return "" -}}

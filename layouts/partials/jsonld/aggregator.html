@@ -1,0 +1,165 @@
+{{/*
+  Builds the complete JSON-LD @graph and outputs the <script> tag.
+
+  Context: page.
+
+  ── Configuration (params.jsonld) ────────────────────────────────────────────
+
+  schemas       []string  — globally enabled schema types.
+                            Controls which site-level nodes are always emitted.
+                            Default: ["Organization", "WebSite", "BreadcrumbList", "Place"]
+                            Add "Place" only if you have data/jsonld/places.json.
+
+  typeMap       map       — maps Hugo .Type to a JSON-LD schema name.
+                            Example: { blog = "Article", events = "Event" }
+                            Built-in schemas: Article, NewsArticle, BlogPosting,
+                            TechArticle, Event, Person, Product.
+
+  faqSections   []string  — .Type values where global FAQs are injected.
+                            See nodes/faqpage.html for details.
+
+  ── Page-level schema resolution (first match wins) ─────────────────────────
+
+  1. params.jsonld.type in frontmatter  (explicit override)
+  2. typeMap lookup on .Type
+  3. "CollectionPage" for section pages
+  4. "WebPage" (default)
+
+  ── Custom schemas ───────────────────────────────────────────────────────────
+
+  For schemas not listed in the built-in schemaMap, create a partial at:
+    layouts/partials/jsonld/nodes/<lowercased-schema-name>.html
+
+  Then register the mapping in params.jsonld.typeMap so the aggregator
+  knows which partial to call. The partial receives the page context and
+  must return a dict (empty dict = no node emitted).
+
+  Example — custom "LocalBusiness" schema:
+    params.jsonld.typeMap = { services = "LocalBusiness" }
+    → create layouts/partials/jsonld/nodes/localbusiness.html
+
+  ─────────────────────────────────────────────────────────────────────────────
+*/}}
+
+{{- $cfg      := site.Params.jsonld | default dict -}}
+{{- $schemas  := $cfg.schemas  | default (slice "Organization" "WebSite" "BreadcrumbList") -}}
+{{- $typeMap  := $cfg.typeMap  | default dict -}}
+{{- $jsonld   := .Params.jsonld | default dict -}}
+
+{{- /* ── Resolve page-level schema ── */ -}}
+{{- $pageSchema := "" -}}
+{{- with $jsonld.type -}}
+  {{- $pageSchema = . -}}
+{{- else if eq $.Kind "home" -}}
+  {{- /* home: WebPage handled below; WebSite is site-level */ -}}
+{{- else if eq $.Kind "section" -}}
+  {{- $pageSchema = "CollectionPage" -}}
+{{- else if $.IsPage -}}
+  {{- with index $typeMap $.Type -}}
+    {{- $pageSchema = . -}}
+  {{- else -}}
+    {{- $pageSchema = "WebPage" -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /*
+  schemaMap: built-in content-type schemas.
+  WebPage subtypes (CollectionPage, AboutPage, …) are handled inside
+  nodes/webpage.html and must NOT appear here to avoid duplicate nodes.
+  FAQPage is always checked unconditionally below.
+*/ -}}
+{{- $schemaMap := dict
+  "Article"          "jsonld/nodes/article.html"
+  "NewsArticle"      "jsonld/nodes/article.html"
+  "BlogPosting"      "jsonld/nodes/article.html"
+  "TechArticle"      "jsonld/nodes/article.html"
+  "ScholarlyArticle" "jsonld/nodes/article.html"
+  "Event"            "jsonld/nodes/event.html"
+  "Person"           "jsonld/nodes/person.html"
+  "Product"          "jsonld/nodes/product.html"
+-}}
+
+{{- $graph := slice -}}
+
+{{- /* ════════════════════════════════════════════════════════════════
+     SITE-LEVEL NODES  (cached globally — data never changes per page)
+     ════════════════════════════════════════════════════════════════ */ -}}
+
+{{- if in $schemas "Organization" -}}
+  {{- with partialCached "jsonld/nodes/organization.html" "global" -}}
+    {{- $graph = $graph | append . -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if in $schemas "Place" -}}
+  {{- range partialCached "jsonld/nodes/place.html" "global" -}}
+    {{- $graph = $graph | append . -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* WebSite — home page only */ -}}
+{{- if and (in $schemas "WebSite") (eq .Kind "home") -}}
+  {{- with partialCached "jsonld/nodes/website.html" "global" -}}
+    {{- $graph = $graph | append . -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* ════════════════════════════════════════════════════════════
+     PAGE-LEVEL NODES  (unique per page — never cached)
+     ════════════════════════════════════════════════════════════ */ -}}
+
+{{- $isContent := or .IsPage (eq .Kind "section") (eq .Kind "home") -}}
+
+{{- if $isContent -}}
+
+  {{- /* BreadcrumbList — every page except home */ -}}
+  {{- if and (in $schemas "BreadcrumbList") (ne .Kind "home") -}}
+    {{- with partial "jsonld/nodes/breadcrumb.html" . -}}
+      {{- $graph = $graph | append . -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- /* WebPage — always (handles CollectionPage, subtypes internally) */ -}}
+  {{- with partial "jsonld/nodes/webpage.html" . -}}
+    {{- $graph = $graph | append . -}}
+  {{- end -}}
+
+  {{- /* Content-type schema — supplements WebPage for leaf pages */ -}}
+  {{- if and .IsPage $pageSchema -}}
+    {{- $webPageTypes := slice "WebPage" "CollectionPage" "ItemPage" "AboutPage" "ContactPage" "ProfilePage" -}}
+    {{- if not (in $webPageTypes $pageSchema) -}}
+      {{- $nodePath := index $schemaMap $pageSchema -}}
+      {{- if $nodePath -}}
+        {{- with partial $nodePath . -}}
+          {{- $graph = $graph | append . -}}
+        {{- end -}}
+      {{- else -}}
+        {{- /*
+          Unknown schema: try a user-supplied partial at the conventional path.
+          If the file does not exist Hugo will report a build error, which
+          is intentional — it surfaces misconfiguration early.
+          To suppress: remove the unknown type from typeMap or frontmatter.
+        */ -}}
+        {{- $customPath := printf "jsonld/nodes/%s.html" (lower $pageSchema) -}}
+        {{- warnf "[jsonld] %q: no built-in node for schema %q — falling back to %q. Create that partial or fix typeMap." .RelPermalink $pageSchema $customPath -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- /* FAQPage — unconditional check; partial decides whether to emit */ -}}
+  {{- with partial "jsonld/nodes/faqpage.html" . -}}
+    {{- $graph = $graph | append . -}}
+  {{- end -}}
+
+{{- end -}}{{- /* $isContent */ -}}
+
+{{- /* ════════════════════════════════════════
+     OUTPUT
+     ════════════════════════════════════════ */ -}}
+{{- if $graph -}}
+  {{- $opts := dict -}}
+  {{- if hugo.IsServer -}}{{- $opts = dict "indent" "  " -}}{{- end -}}
+  <script type="application/ld+json">
+  {{- dict "@context" "https://schema.org" "@graph" $graph | jsonify $opts -}}
+  </script>
+{{- end -}}

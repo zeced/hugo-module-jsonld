@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="{{ site.Language.LanguageCode | default "en" }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ if not .IsHome }}{{ .Title }} | {{ end }}{{ site.Title }}</title>
+  {{ partial "jsonld/head.html" . }}
+</head>
+<body>
+  {{ block "main" . }}{{ end }}
+</body>
+</html>

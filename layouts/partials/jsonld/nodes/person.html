@@ -1,0 +1,43 @@
+{{/*
+  Builds a Person JSON-LD node. Intended for author/team member pages.
+
+  Context: page.
+
+  Frontmatter (params.jsonld or direct params — both checked):
+    name      string    — falls back to .Title
+    jobTitle  string
+    email     string
+    sameAs    []string  — social/professional profile URLs
+
+  The node always links to the configured Organization via worksFor.
+
+  Returns a Person dict, or empty dict if name cannot be resolved.
+*/}}
+{{- $siteURL   := site.BaseURL | strings.TrimRight "/" -}}
+{{- $orgID     := printf "%s#organization" $siteURL -}}
+{{- $personID  := printf "%s#person-%s" $siteURL .Slug -}}
+
+{{- $jsonld := .Params.jsonld | default dict -}}
+{{- $name   := $jsonld.name | default .Params.name | default .Title -}}
+
+{{- if not $name -}}
+  {{- warnf "[jsonld] %q: Person.name is missing." .RelPermalink -}}
+  {{- return dict -}}
+{{- end -}}
+
+{{- $node := dict
+  "@type"    "Person"
+  "@id"      $personID
+  "name"     $name
+  "url"      .Permalink
+  "worksFor" (dict "@id" $orgID)
+-}}
+
+{{- with $jsonld.jobTitle | default .Params.jobTitle -}}{{- $node = merge $node (dict "jobTitle" .) -}}{{- end -}}
+{{- with $jsonld.email    | default .Params.email    -}}{{- $node = merge $node (dict "email"    .) -}}{{- end -}}
+{{- with $jsonld.sameAs   | default .Params.sameAs   -}}{{- $node = merge $node (dict "sameAs"   .) -}}{{- end -}}
+
+{{- $image := partial "jsonld/helpers/resolve-image.html" (dict "page" .) -}}
+{{- with $image -}}{{- $node = merge $node (dict "image" .) -}}{{- end -}}
+
+{{- return $node -}}

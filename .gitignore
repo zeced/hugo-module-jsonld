@@ -1,0 +1,4 @@
+_vendor/
+exampleSite/resources/
+exampleSite/.hugo_build.lock
+exampleSite/public/

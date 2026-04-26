@@ -1,0 +1,6 @@
+baseURL = "https://example.com/"
+title   = "Example Site"
+
+[module]
+  [[module.imports]]
+    path = "github.com/zeced/hugo-module-jsonld"

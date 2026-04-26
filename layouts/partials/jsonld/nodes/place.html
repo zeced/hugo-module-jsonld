@@ -1,0 +1,73 @@
+{{/*
+  Builds Place JSON-LD nodes from data/jsonld/places.json.
+
+  Context: any (uses site globals only — safe for partialCached "global").
+
+  Data file schema (data/jsonld/places.json):
+    places:
+      - slug           string   — used as @id anchor and for cross-references
+        name           string
+        administrative bool     — marks the primary/org location
+        address:
+          streetAddress    string
+          addressLocality  string
+          postalCode       string
+          addressCountry   string
+        openingHours:
+          - dayOfWeek  []string
+            opens      string   — "HH:MM"
+            closes     string   — "HH:MM"
+        telephone      string   (optional)
+        url            string   (optional)
+
+  Returns a slice of Place dicts (empty slice if no data file).
+*/}}
+{{- $placesData := index site.Data "jsonld" | default dict -}}
+{{- $places     := index $placesData "places" | default slice -}}
+{{- $siteURL    := site.BaseURL | strings.TrimRight "/" -}}
+
+{{- $nodes := slice -}}
+
+{{- range $places -}}
+  {{- if not .slug -}}
+    {{- warnf "[jsonld] Place entry %q has no slug — skipping." .name -}}
+    {{- continue -}}
+  {{- end -}}
+
+  {{- $placeID := printf "%s#place-%s" $siteURL .slug -}}
+
+  {{- $address := dict
+    "@type"           "PostalAddress"
+    "streetAddress"   .address.streetAddress
+    "addressLocality" .address.addressLocality
+    "postalCode"      .address.postalCode
+    "addressCountry"  .address.addressCountry
+  -}}
+
+  {{- $node := dict
+    "@type"   "Place"
+    "@id"     $placeID
+    "name"    .name
+    "address" $address
+  -}}
+
+  {{- if .openingHours -}}
+    {{- $specs := slice -}}
+    {{- range .openingHours -}}
+      {{- $specs = $specs | append (dict
+        "@type"      "OpeningHoursSpecification"
+        "dayOfWeek"  .dayOfWeek
+        "opens"      .opens
+        "closes"     .closes
+      ) -}}
+    {{- end -}}
+    {{- $node = merge $node (dict "openingHoursSpecification" $specs) -}}
+  {{- end -}}
+
+  {{- with .telephone -}}{{- $node = merge $node (dict "telephone" .) -}}{{- end -}}
+  {{- with .url       -}}{{- $node = merge $node (dict "url"       .) -}}{{- end -}}
+
+  {{- $nodes = $nodes | append $node -}}
+{{- end -}}
+
+{{- return $nodes -}}

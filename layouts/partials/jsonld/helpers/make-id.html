@@ -1,0 +1,13 @@
+{{/*
+  Generates a canonical @id for a JSON-LD node.
+
+  Input dict:
+    base  string  — base URL (page permalink or site base URL)
+    type  string  — anchor suffix (e.g. "organization", "event", "breadcrumb")
+
+  Returns "{base}#{type}" with trailing slash stripped from base.
+*/}}
+{{- $base := .base | default site.BaseURL -}}
+{{- $type := .type | default "entity" -}}
+
+{{- return printf "%s#%s" ($base | strings.TrimRight "/") $type -}}

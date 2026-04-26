@@ -1,0 +1,27 @@
+{{/*
+  Validates an ISO 8601 date string.
+
+  Input dict:
+    date  string  — date to validate
+    page  Page    — page context for warning messages
+
+  Returns the date string if valid, empty string otherwise (with a warnf).
+*/}}
+{{- $date := .date | default "" -}}
+{{- $page := .page -}}
+
+{{- if not $date -}}{{- return "" -}}{{- end -}}
+
+{{- /* Minimal ISO 8601 check: YYYY-MM-DD */}}
+{{- $valid := and
+  (ge (len $date) 10)
+  (eq (substr $date 4 1) "-")
+  (eq (substr $date 7 1) "-")
+-}}
+
+{{- if not $valid -}}
+  {{- warnf "[jsonld] %q: invalid date %q — expected ISO 8601, e.g. 2024-06-15T10:00:00+02:00" $page.RelPermalink $date -}}
+  {{- return "" -}}
+{{- end -}}
+
+{{- return $date -}}
